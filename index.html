@@ -2621,7 +2621,7 @@ function toggleRoomView() {
     buildRoom(() => {
       // Look INTO the room interior from the open front-right corner.
       // phi=1.15 (66° from zenith) gives a near-eye-level interior angle.
-      sph = {theta: 0.2 + Math.PI, phi: 1.15, r: 7.0};
+      sph = {theta: 0.05 + Math.PI, phi: 1.15, r: 7.0};
       tgt.set(0, -0.3, 0);
       camUpdate();
     });
@@ -3096,7 +3096,7 @@ async function renderScene() {
 
   if (roomMode) {
     // Match the default room-view camera so the render matches what the user sees.
-    sph = { theta: 0.2 + Math.PI, phi: 1.15, r: 7.0 };
+    sph = { theta: 0.05 + Math.PI, phi: 1.15, r: 9.0 };
     tgt.set(0, -0.3, 0);
     camUpdate();
     // Give the scene a neutral off-white backdrop so the render doesn't have a black void
