@@ -1633,13 +1633,29 @@ let bedroomCurtainsVisible = true;
 
 // ── Curtain configurator data ─────────────────────────────────────────────
 const CURTAIN_FABRICS = [
-  { id:'linen',  label:'Linen',  roughness:0.90, sheen:0.10, opacity:1.00, baseColor:'#e9e4d8', swatch:'linear-gradient(135deg,#efe9dc,#d9d2c2)' },
-  { id:'cotton', label:'Cotton', roughness:0.85, sheen:0.05, opacity:1.00, baseColor:'#eceae4', swatch:'linear-gradient(135deg,#f2f0ea,#dcdad2)' },
-  { id:'velvet', label:'Velvet', roughness:0.55, sheen:0.60, opacity:1.00, baseColor:'#3c3f44', swatch:'linear-gradient(135deg,#55585f,#2b2d31)' },
-  { id:'silk',   label:'Silk',   roughness:0.35, sheen:0.80, opacity:1.00, baseColor:'#efe7d6', swatch:'linear-gradient(135deg,#f6efe0,#e2d7bf)' },
-  { id:'voile',  label:'Voile',  roughness:0.95, sheen:0.00, opacity:0.72, baseColor:'#f4f2ec', swatch:'linear-gradient(135deg,#faf9f4,#e8e6de)' },
+  { id:'linen',  label:'Linen',  roughness:0.90, opacity:1.00, swatch:'linear-gradient(135deg,#efe9dc,#d9d2c2)',
+    polyId:'rough_linen',
+    normFallback: [SB+'cotton_fabric/Normal.jpg', SB+'cotton_fabric/Normal.webp'],
+    roughFallback:[SB+'cotton_fabric/Roughness.jpg',SB+'cotton_fabric/Roughness.webp'] },
+  { id:'cotton', label:'Cotton', roughness:0.85, opacity:1.00, swatch:'linear-gradient(135deg,#f2f0ea,#dcdad2)',
+    polyId:'fabric_pattern_05',
+    normFallback: [SB+'cotton_fabric/Normal.jpg', SB+'cotton_fabric/Normal.webp'],
+    roughFallback:[SB+'cotton_fabric/Roughness.jpg',SB+'cotton_fabric/Roughness.webp'] },
+  { id:'velvet', label:'Velvet', roughness:0.55, opacity:1.00, swatch:'linear-gradient(135deg,#55585f,#2b2d31)',
+    polyId:null,
+    normFallback: [SB+'cotton_fabric/Normal.jpg', SB+'cotton_fabric/Normal.webp'],
+    roughFallback:[SB+'cotton_fabric/Roughness.jpg',SB+'cotton_fabric/Roughness.webp'] },
+  { id:'silk',   label:'Silk',   roughness:0.35, opacity:1.00, swatch:'linear-gradient(135deg,#f6efe0,#e2d7bf)',
+    polyId:null,
+    normFallback: [SB+'leather_fabric/Normal.jpg', SB+'leather_fabric/Normal.webp'],
+    roughFallback:[SB+'leather_fabric/Roughness.jpg',SB+'leather_fabric/Roughness.webp'] },
+  { id:'voile',  label:'Voile',  roughness:0.95, opacity:0.72, swatch:'linear-gradient(135deg,#faf9f4,#e8e6de)',
+    polyId:'rough_linen',
+    normFallback: [SB+'cotton_fabric/Normal.jpg', SB+'cotton_fabric/Normal.webp'],
+    roughFallback:[SB+'cotton_fabric/Roughness.jpg',SB+'cotton_fabric/Roughness.webp'] },
 ];
 let curtainState = { shape:'drape', fabric:'linen', color:'#c8b89a' };
+let _curtainNormTex = null, _curtainRoughTex = null;
 
 const CURTAIN_COLORS = [
   { hex:'#f5f2ee', label:'White'   },
@@ -2399,6 +2415,7 @@ function buildPieceList() {
       meshEntries.forEach(e=>{ e.pieceSelected=false; });
       entry.pieceSelected = true;
       buildPieceList();
+      buildLibrary();
       entry.greyMat.emissive=new THREE.Color(0x2d4a3e);entry.greyMat.emissiveIntensity=0.4;entry.greyMat.needsUpdate=true;markDirty();
       setTimeout(()=>{ entry.greyMat.emissive=new THREE.Color(0);entry.greyMat.emissiveIntensity=0;entry.greyMat.needsUpdate=true;markDirty(); },700);
     });
@@ -2425,6 +2442,7 @@ function buildPieceList() {
       meshEntries.forEach(e => { e.pieceSelected = false; });
       curtainEntry.pieceSelected = true;
       buildPieceList();
+      buildLibrary();
       showToast('Curtains selected — now pick a fabric below');
     });
     list.appendChild(row);
@@ -2889,6 +2907,11 @@ function resetAll() {
 
 // ── Build fabric library UI ───────────────────────────────────────────────
 function buildLibrary() {
+  if (roomMode && meshEntries.find(e => e._isCurtain && e.pieceSelected)) {
+    buildCurtainLibrary();
+    return;
+  }
+
   const lt = document.getElementById('lib-title');
   const _ltMap={chair:'Chair Fabrics',sofa:'Sofa Fabrics',bed_wooden:'Bed — Wooden Frame',bed_fabric:'Bed — Fabric Frame'};
   if(lt) lt.textContent = _ltMap[currentModelKey] || 'Fabrics';
@@ -3025,6 +3048,82 @@ function buildLibrary() {
 
     sw.addEventListener('mousedown', e => { e.preventDefault(); startDrag(e, gi, ii); });
     swatchesEl.appendChild(sw);
+  });
+
+  _updateZoneCountBadge();
+}
+
+function buildCurtainLibrary() {
+  const lt = document.getElementById('lib-title');
+  if (lt) lt.textContent = 'Curtain Fabrics';
+
+  const tabsEl     = document.getElementById('fabric-tabs');
+  const swatchesEl = document.getElementById('fabric-swatches-row');
+  if (!tabsEl || !swatchesEl) return;
+
+  tabsEl.querySelectorAll('.fab-tab, .fab-tab-add').forEach(el => el.remove());
+  swatchesEl.innerHTML = '';
+
+  const searchInput = document.getElementById('fab-search-input');
+  if (searchInput) searchInput.value = '';
+
+  // Fabric type label
+  const fabLabel = document.createElement('div');
+  fabLabel.style.cssText = 'font-size:9px;font-weight:700;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;padding:0 6px;display:flex;align-items:center;align-self:center;white-space:nowrap;flex-shrink:0';
+  fabLabel.textContent = 'Fabric Type';
+  swatchesEl.appendChild(fabLabel);
+
+  CURTAIN_FABRICS.forEach(f => {
+    const sw = document.createElement('div');
+    sw.className = 'bar-sw' + (f.id === curtainState.fabric ? ' active' : '');
+    sw.dataset.cfab = f.id;
+    sw.title = f.label;
+
+    const imgWrap = document.createElement('div');
+    imgWrap.className = 'bar-sw-img';
+    imgWrap.style.background = f.swatch;
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'bar-sw-name';
+    nameEl.textContent = f.label;
+
+    const seriesEl = document.createElement('div');
+    seriesEl.className = 'bar-sw-series';
+    seriesEl.textContent = 'Curtain';
+
+    sw.appendChild(imgWrap);
+    sw.appendChild(nameEl);
+    sw.appendChild(seriesEl);
+
+    sw.addEventListener('click', () => {
+      swatchesEl.querySelectorAll('.bar-sw[data-cfab]').forEach(s => s.classList.remove('active'));
+      sw.classList.add('active');
+      setCurtainFabric(f.id);
+    });
+    swatchesEl.appendChild(sw);
+  });
+
+  // Divider
+  const divider = document.createElement('div');
+  divider.style.cssText = 'width:1px;height:60px;background:var(--border);margin:0 10px;flex-shrink:0;align-self:center';
+  swatchesEl.appendChild(divider);
+
+  // Color label
+  const colLabel = document.createElement('div');
+  colLabel.style.cssText = 'font-size:9px;font-weight:700;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;padding:0 6px;display:flex;align-items:center;align-self:center;white-space:nowrap;flex-shrink:0';
+  colLabel.textContent = 'Color';
+  swatchesEl.appendChild(colLabel);
+
+  CURTAIN_COLORS.forEach(c => {
+    const chip = document.createElement('button');
+    chip.className = 'curtain-color-chip' + (c.hex === curtainState.color ? ' active' : '');
+    chip.dataset.cclr = c.hex;
+    chip.style.cssText = 'flex-shrink:0;align-self:center;background:' + c.hex;
+    chip.title = c.label;
+    chip.addEventListener('click', () => {
+      setCurtainColor(c.hex);
+    });
+    swatchesEl.appendChild(chip);
   });
 
   _updateZoneCountBadge();
@@ -3351,7 +3450,7 @@ function _initCurtainFabricSwatches() {
   }
 }
 
-function _buildCurtainMat() {
+function _buildCurtainMat(normTex, roughTex) {
   const preset = CURTAIN_FABRICS.find(f => f.id === curtainState.fabric) || CURTAIN_FABRICS[0];
   const shape  = curtainState.shape;
 
@@ -3364,11 +3463,6 @@ function _buildCurtainMat() {
     });
   }
 
-  // Per-shape material differentiation (geometry comes in Phase 2)
-  // drape   → base fabric, standard look
-  // sheer   → very transparent, lightweight
-  // roman   → flat compressed panel: lighter colour (uniform diffuse), lower roughness
-  // pleated → heavy gathered fabric: darker colour (micro-shadow in folds), higher roughness
   let roughness  = preset.roughness;
   let opacity    = preset.opacity;
   const baseCol  = new THREE.Color(curtainState.color);
@@ -3377,16 +3471,14 @@ function _buildCurtainMat() {
     roughness = Math.min(preset.roughness + 0.04, 1.0);
     opacity   = 0.42;
   } else if (shape === 'roman') {
-    // flat panel reflects more uniformly → 15% brighter, smoother
     roughness = Math.max(preset.roughness - 0.12, 0.10);
     baseCol.multiplyScalar(1.18);
   } else if (shape === 'pleated') {
-    // gathered folds trap shadows → 20% darker, more matte
     roughness = Math.min(preset.roughness + 0.10, 1.0);
     baseCol.multiplyScalar(0.78);
   }
 
-  return new THREE.MeshStandardMaterial({
+  const mat = new THREE.MeshStandardMaterial({
     color: baseCol,
     roughness,
     metalness: 0,
@@ -3395,9 +3487,27 @@ function _buildCurtainMat() {
     side: THREE.DoubleSide,
     depthWrite: opacity >= 1,
   });
+
+  if (normTex) {
+    const nt = normTex.clone();
+    nt.wrapS = nt.wrapT = THREE.RepeatWrapping;
+    nt.repeat.set(8, 8);
+    nt.needsUpdate = true;
+    mat.normalMap = nt;
+    mat.normalScale = new THREE.Vector2(0.8, 0.8);
+  }
+  if (roughTex) {
+    const rt = roughTex.clone();
+    rt.wrapS = rt.wrapT = THREE.RepeatWrapping;
+    rt.repeat.set(8, 8);
+    rt.needsUpdate = true;
+    mat.roughnessMap = rt;
+  }
+
+  return mat;
 }
 
-function _applyCurtainMaterial() {
+async function _applyCurtainMaterial() {
   if (!curtainMeshEntries.length) return;
   if (curtainState.shape === 'none') {
     curtainMeshEntries.forEach(e => { e.mesh.visible = false; });
@@ -3405,8 +3515,54 @@ function _applyCurtainMaterial() {
     return;
   }
   curtainMeshEntries.forEach(e => { e.mesh.visible = bedroomCurtainsVisible; });
-  const mat = _buildCurtainMat();
+
+  const preset = CURTAIN_FABRICS.find(f => f.id === curtainState.fabric) || CURTAIN_FABRICS[0];
+  let normTex = null, roughTex = null;
+  try {
+    if (preset.polyId) {
+      const maps = await getPolyMaps(preset.polyId);
+      [normTex, roughTex] = await Promise.all([
+        maps.normUrl  ? tryLoadTex(maps.normUrl,  false).catch(() => null) : Promise.resolve(null),
+        maps.roughUrl ? tryLoadTex(maps.roughUrl, false).catch(() => null) : Promise.resolve(null),
+      ]);
+    }
+    if (!normTex  && preset.normFallback)  normTex  = await loadTexFirstSuccess(preset.normFallback,  false).catch(() => null);
+    if (!roughTex && preset.roughFallback) roughTex = await loadTexFirstSuccess(preset.roughFallback, false).catch(() => null);
+  } catch (_) {}
+
+  _curtainNormTex  = normTex;
+  _curtainRoughTex = roughTex;
+
+  const mat = _buildCurtainMat(normTex, roughTex);
   curtainMeshEntries.forEach(e => { e.mesh.material = mat; });
+  markDirty();
+}
+
+function _applyCurtainColor() {
+  if (!curtainMeshEntries.length) return;
+  if (curtainState.shape === 'none') return;
+  const preset  = CURTAIN_FABRICS.find(f => f.id === curtainState.fabric) || CURTAIN_FABRICS[0];
+  const shape   = curtainState.shape;
+  const baseCol = new THREE.Color(curtainState.color);
+  let opacity   = preset.opacity;
+  if (shape === 'sheer') {
+    opacity = 0.42;
+  } else if (shape === 'roman') {
+    baseCol.multiplyScalar(1.18);
+  } else if (shape === 'pleated') {
+    baseCol.multiplyScalar(0.78);
+  }
+  curtainMeshEntries.forEach(e => {
+    if (!e.mesh.material) return;
+    const mats = Array.isArray(e.mesh.material) ? e.mesh.material : [e.mesh.material];
+    mats.forEach(m => {
+      if (!m || !m.color) return;
+      m.color.set(baseCol);
+      m.opacity = opacity;
+      m.transparent = opacity < 1;
+      m.needsUpdate = true;
+    });
+  });
   markDirty();
 }
 
@@ -3423,6 +3579,8 @@ function setCurtainFabric(id) {
   document.querySelectorAll('.curtain-swatch').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('cfab-' + id);
   if (btn) btn.classList.add('active');
+  // Sync bar swatches
+  document.querySelectorAll('[data-cfab]').forEach(b => b.classList.toggle('active', b.dataset.cfab === id));
   _applyCurtainMaterial();
 }
 
@@ -3431,7 +3589,9 @@ function setCurtainColor(hex) {
   document.querySelectorAll('.curtain-color-chip').forEach(b => b.classList.remove('active'));
   const chip = document.getElementById('cclr-' + hex.replace('#',''));
   if (chip) chip.classList.add('active');
-  _applyCurtainMaterial();
+  // Sync bar color chips
+  document.querySelectorAll('[data-cclr]').forEach(b => b.classList.toggle('active', b.dataset.cclr === hex));
+  _applyCurtainColor();
 }
 
 function _buildBedroomCurtainEntries(roomScene) {
