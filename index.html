@@ -3867,27 +3867,41 @@ function _buildBlindsGeometry() {
   grp.position.copy(frame.position);
   grp.quaternion.copy(frame.quaternion);
 
+  // Faux-wood louvers: solid boxes (real thickness) so edges catch light.
   const slatMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(curtainState.color), roughness: 0.62, metalness: 0, side: THREE.DoubleSide,
+    color: new THREE.Color(curtainState.color), roughness: 0.62, metalness: 0,
   });
   const railMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(curtainState.color).multiplyScalar(0.7), roughness: 0.7, metalness: 0,
   });
 
-  const count = Math.min(70, Math.max(20, Math.round(height / 0.06)));
-  const pitch = height / count;
-  const slatGeo = new THREE.PlaneGeometry(width, pitch * 1.08); // slight overlap when tilted
+  const tilt      = BLINDS_TILT;
+  const slatDepth = 0.05;                         // 2" louver (front-to-back when flat)
+  const thickness = 0.004;                        // ~3-4 mm
+  const projPitch = Math.max(0.02, slatDepth * Math.cos(tilt)); // visible vertical pitch when tilted
+  const count     = Math.min(60, Math.max(16, Math.round(height / projPitch)));
+  const pitch     = height / count;
+
+  // Box local axes: X = louver length (window width), Y = thickness, Z = louver depth.
+  const slatGeo = new THREE.BoxGeometry(width, thickness, slatDepth);
   for (let i = 0; i < count; i++) {
     const slat = new THREE.Mesh(slatGeo, slatMat);
     slat.position.y = height / 2 - pitch * (i + 0.5);
-    slat.rotation.x = BLINDS_TILT;
+    slat.rotation.x = tilt;                        // tilt about the louver's long axis
     slat.castShadow = true; slat.receiveShadow = true;
     grp.add(slat);
   }
-  const rail = new THREE.Mesh(new THREE.BoxGeometry(width * 1.02, pitch * 1.4, 0.045), railMat);
-  rail.position.y = height / 2 + pitch * 0.7;
-  rail.castShadow = true; rail.receiveShadow = true;
-  grp.add(rail);
+
+  // Slim headrail (top) + heavier bottom rail — both solid boxes, depth kept small to stay clear of glass.
+  const headrail = new THREE.Mesh(new THREE.BoxGeometry(width * 1.02, 0.05, 0.06), railMat);
+  headrail.position.y = height / 2 + 0.03;
+  headrail.castShadow = true; headrail.receiveShadow = true;
+  grp.add(headrail);
+
+  const bottomrail = new THREE.Mesh(new THREE.BoxGeometry(width * 1.02, 0.03, slatDepth * 0.7), railMat);
+  bottomrail.position.y = -height / 2 - 0.015;
+  bottomrail.castShadow = true; bottomrail.receiveShadow = true;
+  grp.add(bottomrail);
 
   grp.userData.slatMat = slatMat;
   grp.userData.railMat = railMat;
