@@ -3950,7 +3950,7 @@ function _buildRomanGeometry(mat) {
   const height = sz.y * lf * 0.99;
   if (width <= 0 || height <= 0) return;
 
-  // Rippled plane: bulge toward the room in evenly-spaced horizontal folds.
+  // Flat-fold panel: a Gaussian dowel ridge at each fold seam + a gentle overall bow.
   const geo = new THREE.PlaneGeometry(width, height, 8, 160); // denser vertical segments for crisp ridges
   const pos = geo.attributes.position;
   const numFolds  = Math.min(9, Math.max(4, Math.round(height / 0.30)));
