@@ -11,6 +11,18 @@ Rules you must follow:
 - Preserve the furniture's exact fabric texture, colour, pattern, and material from the input image — do not change or improve it
 - Photorealistic, 8K quality, soft natural lighting`;
 
+const FURNITURE_RENDER_PROMPT = `You are a professional furniture product photographer. Convert this 3D render of furniture into a photorealistic product photograph.
+
+RULES:
+- Preserve the EXACT fabric color, pattern, texture, and weave of every piece — do not change or improve any material
+- Apply professional studio lighting: soft key light from the upper-front, gentle fill from the sides — even, flattering, no harsh shadows
+- Add a soft realistic contact shadow directly beneath each furniture piece
+- Keep the background clean, plain, and neutral (warm white or soft cream) — NO room walls, floor props, plants, rugs, or any background elements
+- Show all furniture pieces (sofa and/or accent chair) clearly in the frame
+- Output should look like a professional furniture catalogue product photograph
+
+Do NOT add a room. Do NOT add any background objects. Only the furniture on a clean neutral background.`;
+
 const ROOM_PROMPT = `You are a professional interior photography renderer. The input image is a 3D scene of a living room. Convert it into a photorealistic, bright, magazine-quality interior photograph.
 
 STRICT PRESERVATION (do not change):
@@ -51,10 +63,8 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: 'Missing GEMINI_API_KEY environment variable' });
   }
 
-  const prompt = mode === 'room' ? ROOM_PROMPT : PRODUCT_PROMPT;
-  // Room mode needs better layout/texture preservation → Nano Banana 2
-  // Product mode is a simpler single-subject render → Nano Banana (cheaper)
-  const model = mode === 'room' ? 'gemini-3.1-flash-image-preview' : 'gemini-2.5-flash-image';
+  const prompt = mode === 'room' ? ROOM_PROMPT : mode === 'furniture' ? FURNITURE_RENDER_PROMPT : PRODUCT_PROMPT;
+  const model  = mode === 'room' ? 'gemini-3.1-flash-image-preview' : 'gemini-2.5-flash-image';
 
   try {
     const ai = new GoogleGenAI({ apiKey });

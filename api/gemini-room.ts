@@ -1,27 +1,26 @@
 import { GoogleGenAI } from '@google/genai';
 
-const PROMPT = `You are a professional interior design photographer and compositor. You will receive two images.
+const PROMPT = `You are a professional interior design compositor. You will receive two images.
 
 IMAGE 1 = a real photograph of the user's room.
-IMAGE 2 = a 3D render of the furniture (sofa and/or accent chair) on a neutral background, showing the exact custom fabrics and colors the user has chosen.
+IMAGE 2 = a photorealistic product photo of a sofa and/or accent chair on a neutral background, showing the exact custom fabrics the user has configured.
 
-YOUR TASK: Produce a single photorealistic interior photograph that looks like IMAGE 1's room with IMAGE 2's furniture physically present inside it — indistinguishable from a real photo taken on the day.
+YOUR TASK: Produce a single photorealistic interior photograph showing IMAGE 1's room with the furniture from IMAGE 2 naturally placed inside it — looking like a real professional interior photo taken with the furniture already in the room.
 
-INTEGRATION — THIS IS THE MOST IMPORTANT PART:
-- The furniture must be re-lit to match the real room's lighting conditions exactly. In IMAGE 1, observe the light sources (windows, ceiling lights, direction of shadows on the floor) and apply that same lighting to the furniture. The furniture should not look like it came from a studio — it should look like it was photographed in this specific room.
-- Add realistic contact shadows beneath each furniture piece that match the direction and softness of other shadows in IMAGE 1.
-- The furniture should show realistic ambient occlusion where it meets the floor — a soft dark edge where the legs/base touch the ground.
-- If the real floor has reflections or sheen, the furniture legs should show a subtle floor reflection.
-- The overall result must look like a single, unified photograph — not a composite.
+INTEGRATION:
+- Analyse IMAGE 1's lighting: note the direction of natural light (windows), the warmth of the ambient light, and the direction shadows fall on the floor. Apply this exact same lighting to the furniture.
+- Add realistic floor contact shadows beneath each piece that match the shadow direction and softness already visible in IMAGE 1.
+- The furniture should look fully grounded in the room — not floating, not pasted on.
+- If the floor has a sheen or reflection, show a subtle reflection of the furniture legs.
 
-FABRIC: The fabric color, pattern, and texture must match IMAGE 2 exactly. Apply the room's lighting on top of the fabric (highlights, shadows from the light source) — this is correct and expected. But the underlying fabric design, color, and pattern must not change.
+FABRIC: The fabric color, pattern, and texture must remain identical to IMAGE 2. Lighting effects (highlights, shadows cast by the room's light) should appear on top of the fabric naturally, but do not change the underlying fabric design or color.
 
-PLACEMENT:
+ROOM:
 - Remove any existing moveable furniture from IMAGE 1 (sofas, chairs, tables, rugs, floor lamps, cushions). Keep all permanent architecture: walls, floor, ceiling, windows, fireplace, wall art, built-in shelving.
-- Place only the sofa and/or chair from IMAGE 2. No other items (no coffee table, no plants, no rug, no decorations).
-- Position them naturally in the room at a realistic scale.
+- Do not alter the room's colors, lighting, or style in any way.
+- Do not add any objects beyond what is shown in IMAGE 2 — no coffee table, no plants, no rug, no decorations.
 
-OUTPUT: One photorealistic image that looks like a professional interior design photograph of IMAGE 1's room with IMAGE 2's furniture in it.`;
+OUTPUT: One photorealistic image that looks like a professional interior design photograph of IMAGE 1's room with IMAGE 2's furniture seamlessly integrated into it.`;
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -38,11 +37,8 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: 'Missing GEMINI_API_KEY environment variable' });
   }
 
-  // Strip data URL prefix if present
   const roomBase64 = roomPhoto.replace(/^data:image\/[a-z]+;base64,/, '');
   const furnBase64 = furnitureRender.replace(/^data:image\/[a-z]+;base64,/, '');
-
-  // Detect mime type from prefix
   const roomMime = roomPhoto.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
   const furnMime = furnitureRender.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
 
@@ -52,8 +48,8 @@ export default async function handler(req: any, res: any) {
       model: 'gemini-3.1-flash-image-preview',
       contents: {
         parts: [
-          { inlineData: { data: roomBase64,  mimeType: roomMime } },
-          { inlineData: { data: furnBase64,  mimeType: furnMime } },
+          { inlineData: { data: roomBase64, mimeType: roomMime } },
+          { inlineData: { data: furnBase64, mimeType: furnMime } },
           { text: PROMPT },
         ],
       },
